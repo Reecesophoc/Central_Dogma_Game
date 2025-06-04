@@ -14,7 +14,7 @@
     #scene h2, #scene p { max-width: 80%; text-align: center; color: #fff; margin: 10px 0; }
     .button { padding: 10px 20px; margin: 5px; background: rgba(74,144,226,0.8); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-family: 'Cinzel', serif; }
     #template, #dropzones { display: flex; margin: 10px; }
-    #pool { position: absolute; z-index: 10; }
+    #pool { position: relative; z-index: 10; height: 50px; }
     .base { position: absolute; width: 40px; height: 40px; line-height: 40px; text-align: center; border: 1px solid #333; background: #fff; cursor: grab; }
     .dropzone { width: 40px; height: 40px; border: 2px dashed #666; margin: 2px; background: rgba(255,255,255,0.6); }
     #messages { margin: 10px; font-size: 1.1em; color: #fff; height: 1.2em; }
@@ -93,7 +93,7 @@
         pl.style.position='absolute'; pl.style.top=Math.random()*(document.getElementById('window').clientHeight-100)+'px'; pl.style.left=Math.random()*(document.getElementById('window').clientWidth-100)+'px';
         if(replicationState.level>=5) animatePoolItems();
       }
-      const complements = shuffle(seq.split('').map(b=>map[b]));
+      const complements = shuffle(['A','T','G','C']);
       complements.forEach((b,i)=>{
         const p=document.createElement('div'); p.className='base'; p.textContent=b; p.draggable=true; p.style.left=(i*50)+'px'; p.style.top='0';
         p.addEventListener('dragstart',e=>e.dataTransfer.setData('text',b)); pl.appendChild(p);
