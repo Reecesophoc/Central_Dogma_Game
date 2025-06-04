@@ -63,7 +63,10 @@
     }
     function loadReplication() {
       scene.innerHTML=`<h2>Origin Citadel - Level ${replicationState.level}</h2><p>Drag complementary bases before time runs out.</p><div id='template'></div><div id='dropzones'></div><div id='pool'></div><div><button id='check-btn' class='button'>Check</button><button id='menu-btn' class='button'>Back to Menu</button></div><div id='messages'></div>`;
-      timerEl.style.display='block'; initReplicationGame(); spawnHazards();
+      timerEl.style.display='block';
+      initReplicationGame();
+      document.getElementById('menu-btn').onclick=()=>location.reload();
+      spawnHazards();
     }
     function initReplicationGame() {
       const map={A:'T',T:'A',C:'G',G:'C'}, bases=['A','T','C','G'];
@@ -91,7 +94,20 @@
       replicationState.timeLeft=Math.max(30,60-(replicationState.level-1)*5);
       timerVal.textContent=replicationState.timeLeft;
       clearReplicationTimer(); replicationState.timerId=setInterval(()=>{ if(--replicationState.timeLeft<=0){ clearReplicationTimer(); updateHealth(-10); msg.textContent="Time's up! -10 health."; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000); } timerVal.textContent=replicationState.timeLeft; },1000);
-      document.getElementById('check-btn').onclick=()=>{ let ok=true; drp.querySelectorAll('.dropzone').forEach(d=>{ if(d.textContent!==d.dataset.expected) ok=false; }); clearReplicationTimer(); clearHazards(); clearPoolMovement(); if(ok){ updateXP(10); msg.textContent='+10 XP!'; replicationState.level++; setTimeout(loadReplication,1000); } else { updateHealth(-10); msg.textContent='-10 health!'; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000); } document.getElementById('menu-btn').onclick=()=>location.reload(); };
+      document.getElementById('check-btn').onclick=()=>{
+        let ok=true;
+        drp.querySelectorAll('.dropzone').forEach(d=>{
+          if(d.textContent!==d.dataset.expected) ok=false;
+        });
+        clearReplicationTimer();
+        clearHazards();
+        clearPoolMovement();
+        if(ok){
+          updateXP(10); msg.textContent='+10 XP!'; replicationState.level++; setTimeout(loadReplication,1000);
+        } else {
+          updateHealth(-10); msg.textContent='-10 health!'; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000);
+        }
+      };
     }
     function animatePoolItems(){ document.querySelectorAll('#pool .base').forEach(p=>{ let dx=0,dy=0; setInterval(()=>{ dx=(Math.random()-0.5)*4; dy=(Math.random()-0.5)*4; let x=parseFloat(p.style.left||0)+dx, y=parseFloat(p.style.top||0)+dy; x=Math.max(0,Math.min(document.getElementById('window').clientWidth-40,x)); y=Math.max(0,Math.min(document.getElementById('window').clientHeight-40,y)); p.style.left=x+'px'; p.style.top=y+'px'; },500); }); }
     function spawnHazards(){ hazardInterval=setInterval(()=>{ const h=document.createElement('div'); h.className='hazard'; h.textContent='👾'; h.style.top=Math.random()*(window.innerHeight-200)+'px'; h.style.left='-50px'; document.getElementById('window').appendChild(h); const pick=setTimeout(()=>{ const dzs=document.querySelectorAll('.dropzone'); for(const dz of dzs){ if(dz.textContent){ h.dataset.letter=dz.textContent; dz.textContent=''; h.textContent='👾'+h.dataset.letter; break; } } },2000); const speed=1+replicationState.level*0.5; const move=setInterval(()=>{ h.style.left=parseFloat(h.style.left)+speed+'px'; if(parseFloat(h.style.left)>window.innerWidth){ clearInterval(move); clearTimeout(pick); const loss=h.dataset.letter?15:5; updateHealth(-loss); h.remove(); } },16); h.onclick=()=>{ clearInterval(move); clearTimeout(pick); if(h.dataset.letter){ updateXP(10); } else { updateXP(5); } h.remove(); }; },8000); }
