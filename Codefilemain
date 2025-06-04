@@ -20,7 +20,7 @@
     #messages { margin: 10px; font-size: 1.1em; color: #fff; height: 1.2em; }
     #timer { margin: 5px; font-size: 1.1em; color: #fff; }
     .hazard { position: absolute; font-size: 32px; cursor: pointer; text-shadow: 1px 1px 2px #000; }
-    .realm-default { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Main_Title_Screen.png'); }
+    .realm-default { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Main_Title_Image.png'); }
     .realm-replication { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Origin_Citadel_Replication.png'); }
     .realm-transcription { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Whispering_Woods_Transcription.png'); }
     .realm-translation { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Translation_Plains_Translation.png'); }
