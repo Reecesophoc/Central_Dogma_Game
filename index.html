@@ -14,8 +14,9 @@
     #scene h2, #scene p { max-width: 80%; text-align: center; color: #fff; margin: 10px 0; }
     .button { padding: 10px 20px; margin: 5px; background: rgba(74,144,226,0.8); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-family: 'Cinzel', serif; }
     #template, #dropzones { display: flex; margin: 10px; }
-    #pool { position: relative; z-index: 10; height: 50px; }
-    .base { position: absolute; width: 40px; height: 40px; line-height: 40px; text-align: center; border: 1px solid #333; background: #fff; cursor: grab; }
+    #pool { position: relative; z-index: 10; height: 50px; display:flex; justify-content:center; }
+    .base { position: relative; width: 40px; height: 40px; line-height: 40px; text-align: center; border: 1px solid #333; background: #fff; cursor: grab; font-weight:bold; margin:0 5px; }
+    #tutorial-overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; text-align:center; padding:20px; }
     .dropzone { width: 40px; height: 40px; border: 2px dashed #666; margin: 2px; background: rgba(255,255,255,0.6); }
     #messages { margin: 10px; font-size: 1.1em; color: #fff; height: 1.2em; }
     #timer { margin: 5px; font-size: 1.1em; color: #fff; }
@@ -58,7 +59,7 @@
     const healthVal = document.getElementById('health-value'), xpVal = document.getElementById('xp-value');
     const timerEl = document.getElementById('timer'), timerVal = document.getElementById('timer-value');
     document.querySelectorAll('button[data-realm]').forEach(btn => btn.addEventListener('click', () => startRealm(btn.dataset.realm)));
-    let replicationState = { level:1, timeLeft:0, timerId:null }, hazardInterval;
+    let replicationState = { level:1, timeLeft:0, timerId:null, timeLimit:0 }, hazardInterval;
     function startRealm(realm) {
       menu.style.display='none'; clearReplicationTimer(); clearHazards(); clearPoolMovement();
       scene.className='realm-'+realm;
@@ -72,12 +73,20 @@
       scene.innerHTML=`<h2>Origin Citadel - Level ${replicationState.level}</h2><p>Drag complementary bases before time runs out.</p><div id='template'></div><div id='dropzones'></div><div id='pool'></div><div><button id='check-btn' class='button'>Check</button><button id='menu-btn' class='button'>Back to Menu</button></div><div id='messages'></div>`;
       document.getElementById('menu-btn').onclick=()=>location.reload();
       timerEl.style.display='block';
-      initReplicationGame();
-      spawnHazards();
+      const tutorials={1:'Match each base with its complement.',2:'Enemies will appear from the left. Click them!',3:'Codes get longer. Stay sharp!',6:'Enemies can come from any side now!'};
+      const start=()=>{ initReplicationGame(); spawnHazards(); };
+      if(tutorials[replicationState.level]){ showTutorial(tutorials[replicationState.level],start); } else { start(); }
     }
     function initReplicationGame() {
       const map={A:'T',T:'A',C:'G',G:'C'}, bases=['A','T','C','G'];
-      const len=Math.min(6+replicationState.level-1,10);
+      function codeLength(l){
+        if(l<=2) return 6;
+        if(l<=4) return 7;
+        if(l<=6) return 8;
+        if(l===7) return 9;
+        return 10;
+      }
+      const len=codeLength(replicationState.level);
       let seq=''; for(let i=0;i<len;i++) seq+=bases[Math.floor(Math.random()*4)];
       const tpl=document.getElementById('template'), drp=document.getElementById('dropzones'), pl=document.getElementById('pool'), msg=document.getElementById('messages');
       tpl.innerHTML=''; drp.innerHTML=''; msg.textContent='';
@@ -87,18 +96,14 @@
         const dz=document.createElement('div'); dz.className='dropzone'; dz.dataset.expected=map[b]; dz.addEventListener('dragover',e=>e.preventDefault()); dz.addEventListener('drop',e=>{e.preventDefault(); const d=e.dataTransfer.getData('text'); if(!dz.textContent) dz.textContent=d; }); drp.appendChild(dz);
       });
       pl.innerHTML='';
-      if(replicationState.level<=2) {
-        pl.style.position='relative'; pl.style.top=''; pl.style.left='';
-      } else {
-        pl.style.position='absolute'; pl.style.top=Math.random()*(document.getElementById('window').clientHeight-100)+'px'; pl.style.left=Math.random()*(document.getElementById('window').clientWidth-100)+'px';
-        if(replicationState.level>=5) animatePoolItems();
-      }
+      pl.style.position='relative'; pl.style.top=''; pl.style.left='';
       const complements = shuffle(['A','T','G','C']);
-      complements.forEach((b,i)=>{
-        const p=document.createElement('div'); p.className='base'; p.textContent=b; p.draggable=true; p.style.left=(i*50)+'px'; p.style.top='0';
+      complements.forEach((b)=>{
+        const p=document.createElement('div'); p.className='base'; p.textContent=b; p.draggable=true;
         p.addEventListener('dragstart',e=>e.dataTransfer.setData('text',b)); pl.appendChild(p);
       });
       replicationState.timeLeft=Math.max(30,60-(replicationState.level-1)*5);
+      replicationState.timeLimit=replicationState.timeLeft;
       timerVal.textContent=replicationState.timeLeft;
       clearReplicationTimer(); replicationState.timerId=setInterval(()=>{ if(--replicationState.timeLeft<=0){ clearReplicationTimer(); updateHealth(-10); msg.textContent="Time's up! -10 health."; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000); } timerVal.textContent=replicationState.timeLeft; },1000);
       document.getElementById('check-btn').onclick=()=>{
@@ -110,29 +115,47 @@
         clearHazards();
         clearPoolMovement();
         if(ok){
-          updateXP(10); msg.textContent='+10 XP!'; replicationState.level++; setTimeout(loadReplication,1000);
+          const gain=Math.max(1,Math.floor(10*replicationState.timeLeft/replicationState.timeLimit));
+          updateXP(gain); msg.textContent=`+${gain} XP!`; replicationState.level++; setTimeout(loadReplication,1000);
         } else {
           updateHealth(-10); msg.textContent='-10 health!'; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000);
         }
       };
     }
-    function animatePoolItems(){
-      document.querySelectorAll('#pool .base').forEach(p=>{
-        let dx=0,dy=0;
-        const id=setInterval(()=>{
-          dx=(Math.random()-0.5)*4;
-          dy=(Math.random()-0.5)*4;
-          let x=parseFloat(p.style.left||0)+dx,
-              y=parseFloat(p.style.top||0)+dy;
-          x=Math.max(0,Math.min(document.getElementById('window').clientWidth-40,x));
-          y=Math.max(0,Math.min(document.getElementById('window').clientHeight-40,y));
-          p.style.left=x+'px';
-          p.style.top=y+'px';
-        },500);
-        p.dataset.moveInterval=id;
-      });
+    function spawnHazards(){
+      const dirs=replicationState.level<=3?['L']:replicationState.level<=5?['L','R']:['L','R','T','B'];
+      if(replicationState.level===1) return; // no enemies on level 1
+      hazardInterval=setInterval(()=>{
+        const dir=dirs[Math.floor(Math.random()*dirs.length)];
+        const h=document.createElement('div');
+        h.className='hazard';
+        h.textContent='👾';
+        const win=document.getElementById('window');
+        if(dir==='L'){ h.style.top=Math.random()*(win.clientHeight-100)+'px'; h.style.left='-50px'; }
+        if(dir==='R'){ h.style.top=Math.random()*(win.clientHeight-100)+'px'; h.style.left=win.clientWidth+'px'; }
+        if(dir==='T'){ h.style.left=Math.random()*(win.clientWidth-100)+'px'; h.style.top='-50px'; }
+        if(dir==='B'){ h.style.left=Math.random()*(win.clientWidth-100)+'px'; h.style.top=win.clientHeight+'px'; }
+        win.appendChild(h);
+        const pick=setTimeout(()=>{
+          const dzs=document.querySelectorAll('.dropzone');
+          for(const dz of dzs){ if(dz.textContent){ h.dataset.letter=dz.textContent; dz.textContent=''; h.textContent='👾'+h.dataset.letter; break; } }
+        },2000);
+        const speed=1+replicationState.level*0.5;
+        const move=setInterval(()=>{
+          const x=parseFloat(h.style.left||0);
+          const y=parseFloat(h.style.top||0);
+          if(dir==='L'){ h.style.left=(x+speed)+'px'; if(x>win.clientWidth){ end(); } }
+          if(dir==='R'){ h.style.left=(x-speed)+'px'; if(x<-60){ end(); } }
+          if(dir==='T'){ h.style.top=(y+speed)+'px'; if(y>win.clientHeight){ end(); } }
+          if(dir==='B'){ h.style.top=(y-speed)+'px'; if(y<-60){ end(); } }
+        },16);
+        function end(){
+          clearInterval(move); clearTimeout(pick);
+          const loss=h.dataset.letter?15:5; updateHealth(-loss); h.remove();
+        }
+        h.onclick=()=>{ clearInterval(move); clearTimeout(pick); if(h.dataset.letter){ updateXP(10); } else { updateXP(5); } h.remove(); };
+      },8000);
     }
-    function spawnHazards(){ hazardInterval=setInterval(()=>{ const h=document.createElement('div'); h.className='hazard'; h.textContent='👾'; h.style.top=Math.random()*(window.innerHeight-200)+'px'; h.style.left='-50px'; document.getElementById('window').appendChild(h); const pick=setTimeout(()=>{ const dzs=document.querySelectorAll('.dropzone'); for(const dz of dzs){ if(dz.textContent){ h.dataset.letter=dz.textContent; dz.textContent=''; h.textContent='👾'+h.dataset.letter; break; } } },2000); const speed=1+replicationState.level*0.5; const move=setInterval(()=>{ h.style.left=parseFloat(h.style.left)+speed+'px'; if(parseFloat(h.style.left)>window.innerWidth){ clearInterval(move); clearTimeout(pick); const loss=h.dataset.letter?15:5; updateHealth(-loss); h.remove(); } },16); h.onclick=()=>{ clearInterval(move); clearTimeout(pick); if(h.dataset.letter){ updateXP(10); } else { updateXP(5); } h.remove(); }; },8000); }
     function clearPoolMovement(){
       document.querySelectorAll('#pool .base').forEach(p=>{
         if(p.dataset.moveInterval){
@@ -145,6 +168,13 @@
     function clearReplicationTimer(){ if(replicationState.timerId) clearInterval(replicationState.timerId); replicationState.timerId=null; }
     function updateXP(n){ xpVal.textContent=+xpVal.textContent+n; }
     function updateHealth(n){ healthVal.textContent=Math.max(0,+healthVal.textContent+n); }
+    function showTutorial(text,cb){
+      const o=document.createElement('div');
+      o.id='tutorial-overlay';
+      o.innerHTML=`<p>${text}</p><button class='button'>Start</button>`;
+      document.getElementById('window').appendChild(o);
+      o.querySelector('button').onclick=()=>{ o.remove(); if(cb) cb(); };
+    }
   </script>
 </body>
 </html>
