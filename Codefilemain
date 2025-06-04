@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chromosomal Kingdom RPG</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Cinzel', serif; }
+    #game-container { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #000; }
+    #ui { position: absolute; top: 10px; left: 10px; color: #fff; z-index: 100; }
+    #ui div { margin: 4px 0; }
+    #window { position: relative; width: 80vw; height: 80vh; background: #222; border: 8px solid #555; box-shadow: 0 0 20px #000; overflow: hidden; }
+    #scene { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; transition: background 0.5s ease; background-size: contain; background-position: center; background-repeat: no-repeat; }
+    #scene h2, #scene p { max-width: 80%; text-align: center; color: #fff; margin: 10px 0; }
+    .button { padding: 10px 20px; margin: 5px; background: rgba(74,144,226,0.8); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-family: 'Cinzel', serif; }
+    #template, #dropzones { display: flex; margin: 10px; }
+    #pool { position: absolute; z-index: 10; }
+    .base { position: absolute; width: 40px; height: 40px; line-height: 40px; text-align: center; border: 1px solid #333; background: #fff; cursor: grab; }
+    .dropzone { width: 40px; height: 40px; border: 2px dashed #666; margin: 2px; background: rgba(255,255,255,0.6); }
+    #messages { margin: 10px; font-size: 1.1em; color: #fff; height: 1.2em; }
+    #timer { margin: 5px; font-size: 1.1em; color: #fff; }
+    .hazard { position: absolute; font-size: 32px; cursor: pointer; text-shadow: 1px 1px 2px #000; }
+    .realm-default { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Main_Title_Screen.png'); }
+    .realm-replication { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Origin_Citadel_Replication.png'); }
+    .realm-transcription { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Whispering_Woods_Transcription.png'); }
+    .realm-translation { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Translation_Plains_Translation.png'); }
+    .realm-folding { background-image: url('https://raw.githubusercontent.com/Reecesophoc/Central_Dogma_Game/main/Caverns_of_Conformation_Folding.png'); }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="ui">
+      <div id="health">Health: <span id="health-value">100</span></div>
+      <div id="xp">XP: <span id="xp-value">0</span></div>
+      <div id="timer" style="display:none;">Time: <span id="timer-value"></span>s</div>
+    </div>
+    <div id="window">
+      <div id="scene" class="realm-default">
+        <div id="menu">
+          <h1>Choose Your Realm</h1>
+          <button class="button" data-realm="replication">Origin Citadel</button>
+          <button class="button" data-realm="transcription">Whispering Woods</button>
+          <button class="button" data-realm="translation">Translation Plains</button>
+          <button class="button" data-realm="folding">Caverns of Conformation</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const scene = document.getElementById('scene'), menu = document.getElementById('menu');
+    const healthVal = document.getElementById('health-value'), xpVal = document.getElementById('xp-value');
+    const timerEl = document.getElementById('timer'), timerVal = document.getElementById('timer-value');
+    document.querySelectorAll('button[data-realm]').forEach(btn => btn.addEventListener('click', () => startRealm(btn.dataset.realm)));
+    let replicationState = { level:1, timeLeft:0, timerId:null }, hazardInterval;
+    function startRealm(realm) {
+      menu.style.display='none'; clearReplicationTimer(); clearHazards(); clearPoolMovement();
+      scene.className='realm-'+realm;
+      if(realm==='replication') loadReplication(); else loadSimpleRealm({transcription:'Whispering Woods',translation:'Translation Plains',folding:'Caverns of Conformation'}[realm]);
+    }
+    function loadSimpleRealm(title) {
+      scene.innerHTML=`<h2>${title}</h2><button id='back' class='button'>Back to Menu</button>`;
+      document.getElementById('back').onclick=()=>location.reload();
+    }
+    function loadReplication() {
+      scene.innerHTML=`<h2>Origin Citadel - Level ${replicationState.level}</h2><p>Drag complementary bases before time runs out.</p><div id='template'></div><div id='dropzones'></div><div id='pool'></div><div><button id='check-btn' class='button'>Check</button><button id='menu-btn' class='button'>Back to Menu</button></div><div id='messages'></div>`;
+      timerEl.style.display='block'; initReplicationGame(); spawnHazards();
+    }
+    function initReplicationGame() {
+      const map={A:'T',T:'A',C:'G',G:'C'}, bases=['A','T','C','G'];
+      const len=Math.min(6+replicationState.level-1,10);
+      let seq=''; for(let i=0;i<len;i++) seq+=bases[Math.floor(Math.random()*4)];
+      const tpl=document.getElementById('template'), drp=document.getElementById('dropzones'), pl=document.getElementById('pool'), msg=document.getElementById('messages');
+      tpl.innerHTML=''; drp.innerHTML=''; msg.textContent='';
+      tpl.style.display='flex'; drp.style.display='flex';
+      seq.split('').forEach((b,i)=>{
+        const bd=document.createElement('div'); bd.className='base'; bd.textContent=b; bd.style.position='relative'; tpl.appendChild(bd);
+        const dz=document.createElement('div'); dz.className='dropzone'; dz.dataset.expected=map[b]; dz.addEventListener('dragover',e=>e.preventDefault()); dz.addEventListener('drop',e=>{e.preventDefault(); const d=e.dataTransfer.getData('text'); if(!dz.textContent) dz.textContent=d; }); drp.appendChild(dz);
+      });
+      pl.innerHTML='';
+      if(replicationState.level<=2) {
+        pl.style.position='relative'; pl.style.top=''; pl.style.left='';
+      } else {
+        pl.style.position='absolute'; pl.style.top=Math.random()*(document.getElementById('window').clientHeight-100)+'px'; pl.style.left=Math.random()*(document.getElementById('window').clientWidth-100)+'px';
+        if(replicationState.level>=5) animatePoolItems();
+      }
+      const complements = shuffle(seq.split('').map(b=>map[b]));
+      complements.forEach((b,i)=>{
+        const p=document.createElement('div'); p.className='base'; p.textContent=b; p.draggable=true; p.style.left=(i*50)+'px'; p.style.top='0';
+        p.addEventListener('dragstart',e=>e.dataTransfer.setData('text',b)); pl.appendChild(p);
+      });
+      replicationState.timeLeft=Math.max(30,60-(replicationState.level-1)*5);
+      timerVal.textContent=replicationState.timeLeft;
+      clearReplicationTimer(); replicationState.timerId=setInterval(()=>{ if(--replicationState.timeLeft<=0){ clearReplicationTimer(); updateHealth(-10); msg.textContent="Time's up! -10 health."; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000); } timerVal.textContent=replicationState.timeLeft; },1000);
+      document.getElementById('check-btn').onclick=()=>{ let ok=true; drp.querySelectorAll('.dropzone').forEach(d=>{ if(d.textContent!==d.dataset.expected) ok=false; }); clearReplicationTimer(); clearHazards(); clearPoolMovement(); if(ok){ updateXP(10); msg.textContent='+10 XP!'; replicationState.level++; setTimeout(loadReplication,1000); } else { updateHealth(-10); msg.textContent='-10 health!'; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000); } document.getElementById('menu-btn').onclick=()=>location.reload(); };
+    }
+    function animatePoolItems(){ document.querySelectorAll('#pool .base').forEach(p=>{ let dx=0,dy=0; setInterval(()=>{ dx=(Math.random()-0.5)*4; dy=(Math.random()-0.5)*4; let x=parseFloat(p.style.left||0)+dx, y=parseFloat(p.style.top||0)+dy; x=Math.max(0,Math.min(document.getElementById('window').clientWidth-40,x)); y=Math.max(0,Math.min(document.getElementById('window').clientHeight-40,y)); p.style.left=x+'px'; p.style.top=y+'px'; },500); }); }
+    function spawnHazards(){ hazardInterval=setInterval(()=>{ const h=document.createElement('div'); h.className='hazard'; h.textContent='👾'; h.style.top=Math.random()*(window.innerHeight-200)+'px'; h.style.left='-50px'; document.getElementById('window').appendChild(h); const pick=setTimeout(()=>{ const dzs=document.querySelectorAll('.dropzone'); for(const dz of dzs){ if(dz.textContent){ h.dataset.letter=dz.textContent; dz.textContent=''; h.textContent='👾'+h.dataset.letter; break; } } },2000); const speed=1+replicationState.level*0.5; const move=setInterval(()=>{ h.style.left=parseFloat(h.style.left)+speed+'px'; if(parseFloat(h.style.left)>window.innerWidth){ clearInterval(move); clearTimeout(pick); const loss=h.dataset.letter?15:5; updateHealth(-loss); h.remove(); } },16); h.onclick=()=>{ clearInterval(move); clearTimeout(pick); if(h.dataset.letter){ updateXP(10); } else { updateXP(5); } h.remove(); }; },8000); }
+    function clearPoolMovement(){ document.querySelectorAll('#pool .base').forEach(p=>{ /* intervals persist but movement resets on new pool */ }); }
+    function clearHazards(){ clearInterval(hazardInterval); document.querySelectorAll('.hazard').forEach(h=>h.remove()); }
+    function clearReplicationTimer(){ if(replicationState.timerId) clearInterval(replicationState.timerId); replicationState.timerId=null; }
+    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+    function updateXP(n){ xpVal.textContent=+xpVal.textContent+n; }
+    function updateHealth(n){ healthVal.textContent=Math.max(0,+healthVal.textContent+n); }
+  </script>
+</body>
+</html>
