@@ -109,9 +109,31 @@
         }
       };
     }
-    function animatePoolItems(){ document.querySelectorAll('#pool .base').forEach(p=>{ let dx=0,dy=0; setInterval(()=>{ dx=(Math.random()-0.5)*4; dy=(Math.random()-0.5)*4; let x=parseFloat(p.style.left||0)+dx, y=parseFloat(p.style.top||0)+dy; x=Math.max(0,Math.min(document.getElementById('window').clientWidth-40,x)); y=Math.max(0,Math.min(document.getElementById('window').clientHeight-40,y)); p.style.left=x+'px'; p.style.top=y+'px'; },500); }); }
+    function animatePoolItems(){
+      document.querySelectorAll('#pool .base').forEach(p=>{
+        let dx=0,dy=0;
+        const id=setInterval(()=>{
+          dx=(Math.random()-0.5)*4;
+          dy=(Math.random()-0.5)*4;
+          let x=parseFloat(p.style.left||0)+dx,
+              y=parseFloat(p.style.top||0)+dy;
+          x=Math.max(0,Math.min(document.getElementById('window').clientWidth-40,x));
+          y=Math.max(0,Math.min(document.getElementById('window').clientHeight-40,y));
+          p.style.left=x+'px';
+          p.style.top=y+'px';
+        },500);
+        p.dataset.moveInterval=id;
+      });
+    }
     function spawnHazards(){ hazardInterval=setInterval(()=>{ const h=document.createElement('div'); h.className='hazard'; h.textContent='👾'; h.style.top=Math.random()*(window.innerHeight-200)+'px'; h.style.left='-50px'; document.getElementById('window').appendChild(h); const pick=setTimeout(()=>{ const dzs=document.querySelectorAll('.dropzone'); for(const dz of dzs){ if(dz.textContent){ h.dataset.letter=dz.textContent; dz.textContent=''; h.textContent='👾'+h.dataset.letter; break; } } },2000); const speed=1+replicationState.level*0.5; const move=setInterval(()=>{ h.style.left=parseFloat(h.style.left)+speed+'px'; if(parseFloat(h.style.left)>window.innerWidth){ clearInterval(move); clearTimeout(pick); const loss=h.dataset.letter?15:5; updateHealth(-loss); h.remove(); } },16); h.onclick=()=>{ clearInterval(move); clearTimeout(pick); if(h.dataset.letter){ updateXP(10); } else { updateXP(5); } h.remove(); }; },8000); }
-    function clearPoolMovement(){ document.querySelectorAll('#pool .base').forEach(p=>{ /* intervals persist but movement resets on new pool */ }); }
+    function clearPoolMovement(){
+      document.querySelectorAll('#pool .base').forEach(p=>{
+        if(p.dataset.moveInterval){
+          clearInterval(parseInt(p.dataset.moveInterval));
+          delete p.dataset.moveInterval;
+        }
+      });
+    }
     function clearHazards(){ clearInterval(hazardInterval); document.querySelectorAll('.hazard').forEach(h=>h.remove()); }
     function clearReplicationTimer(){ if(replicationState.timerId) clearInterval(replicationState.timerId); replicationState.timerId=null; }
     function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
