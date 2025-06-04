@@ -63,9 +63,9 @@
     }
     function loadReplication() {
       scene.innerHTML=`<h2>Origin Citadel - Level ${replicationState.level}</h2><p>Drag complementary bases before time runs out.</p><div id='template'></div><div id='dropzones'></div><div id='pool'></div><div><button id='check-btn' class='button'>Check</button><button id='menu-btn' class='button'>Back to Menu</button></div><div id='messages'></div>`;
+      document.getElementById('menu-btn').onclick=()=>location.reload();
       timerEl.style.display='block';
       initReplicationGame();
-      document.getElementById('menu-btn').onclick=()=>location.reload();
       spawnHazards();
     }
     function initReplicationGame() {
