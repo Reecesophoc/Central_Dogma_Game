@@ -46,7 +46,8 @@
       </div>
     </div>
   </div>
-  <script>
+  <script type="module">
+    import { shuffle } from './game-utils.js';
     const scene = document.getElementById('scene'), menu = document.getElementById('menu');
     const healthVal = document.getElementById('health-value'), xpVal = document.getElementById('xp-value');
     const timerEl = document.getElementById('timer'), timerVal = document.getElementById('timer-value');
@@ -136,7 +137,6 @@
     }
     function clearHazards(){ clearInterval(hazardInterval); document.querySelectorAll('.hazard').forEach(h=>h.remove()); }
     function clearReplicationTimer(){ if(replicationState.timerId) clearInterval(replicationState.timerId); replicationState.timerId=null; }
-    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
     function updateXP(n){ xpVal.textContent=+xpVal.textContent+n; }
     function updateHealth(n){ healthVal.textContent=Math.max(0,+healthVal.textContent+n); }
   </script>
