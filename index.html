@@ -15,7 +15,10 @@
     .button { padding: 10px 20px; margin: 5px; background: rgba(74,144,226,0.8); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-family: 'Cinzel', serif; }
     #template, #dropzones { display: flex; margin: 10px; }
     #pool { position: relative; z-index: 10; height: 50px; display:flex; justify-content:center; }
-    .base { position: relative; width: 40px; height: 40px; line-height: 40px; text-align: center; border: 1px solid #333; background: #fff; cursor: grab; font-weight:bold; margin:0 5px; }
+    .base { position: relative; width: 40px; height: 40px; line-height: 40px; text-align: center; border: 1px solid #333; background: #fff; cursor: pointer; font-weight:bold; margin:0 5px; }
+    .base.selected { outline: 2px solid #ffeb3b; }
+    .dropzone.hint { border-color:#ffeb3b; }
+    #name-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:300; color:#fff; }
     #tutorial-overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; text-align:center; padding:20px; }
     .dropzone { width: 40px; height: 40px; border: 2px dashed #666; margin: 2px; background: rgba(255,255,255,0.6); }
     #messages { margin: 10px; font-size: 1.1em; color: #fff; height: 1.2em; }
@@ -31,6 +34,7 @@
 <body>
   <div id="game-container">
     <div id="ui">
+      <div id="player">Player: <span id="player-name-value"></span></div>
       <div id="health">Health: <span id="health-value">100</span></div>
       <div id="xp">XP: <span id="xp-value">0</span></div>
       <div id="timer" style="display:none;">Time: <span id="timer-value"></span>s</div>
@@ -58,7 +62,23 @@
     const scene = document.getElementById('scene'), menu = document.getElementById('menu');
     const healthVal = document.getElementById('health-value'), xpVal = document.getElementById('xp-value');
     const timerEl = document.getElementById('timer'), timerVal = document.getElementById('timer-value');
+    const playerNameVal = document.getElementById('player-name-value');
+    let selectedBase = null, playerName = '', poolMoveId = null;
     document.querySelectorAll('button[data-realm]').forEach(btn => btn.addEventListener('click', () => startRealm(btn.dataset.realm)));
+
+    function promptName(){
+      const o=document.createElement('div');
+      o.id='name-overlay';
+      o.innerHTML=`<p>Enter your name</p><input id='name-input' style="padding:6px;font-size:1em;"><button id='name-ok' class='button'>Start</button>`;
+      document.body.appendChild(o);
+      document.getElementById('name-ok').onclick=()=>{
+        const val=document.getElementById('name-input').value.trim();
+        playerName=val||'Player';
+        playerNameVal.textContent=playerName;
+        o.remove();
+      };
+    }
+    document.addEventListener('DOMContentLoaded',promptName);
     let replicationState = { level:1, timeLeft:0, timerId:null, timeLimit:0 }, hazardInterval;
     function startRealm(realm) {
       menu.style.display='none'; clearReplicationTimer(); clearHazards(); clearPoolMovement();
@@ -70,7 +90,7 @@
       document.getElementById('back').onclick=()=>location.reload();
     }
     function loadReplication() {
-      scene.innerHTML=`<h2>Origin Citadel - Level ${replicationState.level}</h2><p>Drag complementary bases before time runs out.</p><div id='template'></div><div id='dropzones'></div><div id='pool'></div><div><button id='check-btn' class='button'>Check</button><button id='menu-btn' class='button'>Back to Menu</button></div><div id='messages'></div>`;
+      scene.innerHTML=`<h2>Origin Citadel - Level ${replicationState.level}</h2><p>Select a base then click a slot to place it.</p><div id='template'></div><div id='dropzones'></div><div id='pool'></div><div><button id='check-btn' class='button'>Check</button><button id='menu-btn' class='button'>Back to Menu</button></div><div id='messages'></div>`;
       document.getElementById('menu-btn').onclick=()=>location.reload();
       timerEl.style.display='block';
       const tutorials={1:'Match each base with its complement.',2:'Enemies will appear from the left. Click them!',3:'Codes get longer. Stay sharp!',6:'Enemies can come from any side now!'};
@@ -91,17 +111,18 @@
       const tpl=document.getElementById('template'), drp=document.getElementById('dropzones'), pl=document.getElementById('pool'), msg=document.getElementById('messages');
       tpl.innerHTML=''; drp.innerHTML=''; msg.textContent='';
       tpl.style.display='flex'; drp.style.display='flex';
-      seq.split('').forEach((b,i)=>{
+      seq.split('').forEach((b)=>{
         const bd=document.createElement('div'); bd.className='base'; bd.textContent=b; bd.style.position='relative'; tpl.appendChild(bd);
-        const dz=document.createElement('div'); dz.className='dropzone'; dz.dataset.expected=map[b]; dz.addEventListener('dragover',e=>e.preventDefault()); dz.addEventListener('drop',e=>{e.preventDefault(); const d=e.dataTransfer.getData('text'); if(!dz.textContent) dz.textContent=d; }); drp.appendChild(dz);
+        const dz=document.createElement('div'); dz.className='dropzone'; dz.dataset.expected=map[b]; dz.addEventListener('click',()=>placeBase(dz)); drp.appendChild(dz);
       });
       pl.innerHTML='';
       pl.style.position='relative'; pl.style.top=''; pl.style.left='';
       const complements = shuffle(['A','T','G','C']);
       complements.forEach((b)=>{
-        const p=document.createElement('div'); p.className='base'; p.textContent=b; p.draggable=true;
-        p.addEventListener('dragstart',e=>e.dataTransfer.setData('text',b)); pl.appendChild(p);
+        const p=document.createElement('div'); p.className='base'; p.textContent=b;
+        p.addEventListener('click',()=>selectBase(p)); pl.appendChild(p);
       });
+      if(replicationState.level>=5) startPoolMovement();
       replicationState.timeLeft=Math.max(30,60-(replicationState.level-1)*5);
       replicationState.timeLimit=replicationState.timeLeft;
       timerVal.textContent=replicationState.timeLeft;
@@ -121,6 +142,29 @@
           updateHealth(-10); msg.textContent='-10 health!'; if(+healthVal.textContent>0) setTimeout(initReplicationGame,1000);
         }
       };
+    }
+
+    function selectBase(el){
+      if(selectedBase===el){ el.classList.remove('selected'); selectedBase=null; clearHints(); return; }
+      if(selectedBase){ selectedBase.classList.remove('selected'); }
+      selectedBase=el; el.classList.add('selected');
+      if(replicationState.level===1){
+        document.querySelectorAll('.dropzone').forEach(d=>{
+          if(!d.textContent && d.dataset.expected===el.textContent){ d.classList.add('hint'); } else { d.classList.remove('hint'); }
+        });
+      }
+    }
+
+    function clearHints(){
+      document.querySelectorAll('.dropzone.hint').forEach(d=>d.classList.remove('hint'));
+    }
+
+    function placeBase(dz){
+      if(!selectedBase || dz.textContent) return;
+      dz.textContent=selectedBase.textContent;
+      selectedBase.remove();
+      selectedBase=null;
+      clearHints();
     }
     function spawnHazards(){
       const dirs=replicationState.level<=3?['L']:replicationState.level<=5?['L','R']:['L','R','T','B'];
@@ -156,13 +200,19 @@
         h.onclick=()=>{ clearInterval(move); clearTimeout(pick); if(h.dataset.letter){ updateXP(10); } else { updateXP(5); } h.remove(); };
       },8000);
     }
+    function startPoolMovement(){
+      const pool=document.getElementById('pool');
+      let dir=1; pool.style.left='0px';
+      poolMoveId=setInterval(()=>{
+        let l=parseInt(pool.style.left||0,10);
+        if(l>50) dir=-1; if(l<-50) dir=1;
+        pool.style.left=(l+dir*2)+'px';
+      },50);
+    }
     function clearPoolMovement(){
-      document.querySelectorAll('#pool .base').forEach(p=>{
-        if(p.dataset.moveInterval){
-          clearInterval(parseInt(p.dataset.moveInterval));
-          delete p.dataset.moveInterval;
-        }
-      });
+      if(poolMoveId){ clearInterval(poolMoveId); poolMoveId=null; }
+      const pool=document.getElementById('pool');
+      if(pool) pool.style.left='';
     }
     function clearHazards(){ clearInterval(hazardInterval); document.querySelectorAll('.hazard').forEach(h=>h.remove()); }
     function clearReplicationTimer(){ if(replicationState.timerId) clearInterval(replicationState.timerId); replicationState.timerId=null; }
